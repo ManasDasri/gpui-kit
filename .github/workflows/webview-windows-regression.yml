@@ -19,3 +19,7 @@ jobs:
       - uses: actions-rust-lang/setup-rust-toolchain@v1
       - name: Reproduce the original WebView2 abort
         run: cargo test -p gpui-webview --features gpui-fast,gpui-kit/gpui-fast --test windows_construction -- --expect-crash
+      - name: Apply the GPUI Fast fix to the published dependency
+        run: python .ci/prepare-gpui-fast.py
+      - name: Verify construction and deferred foreground wakeups
+        run: cargo test --config target/webview-regression.toml -p gpui-webview --features gpui-fast,gpui-kit/gpui-fast --test windows_construction

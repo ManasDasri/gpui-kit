@@ -161,6 +161,7 @@ mod native {
                     "unrelated failure"
                 );
                 assert!(output.contains("starting native WebView construction"));
+                assert!(output.contains("foreground task polled; building=true"));
             } else {
                 assert!(status.success(), "{case} failed");
                 assert!(output.contains("PASS: WebView built"));
