@@ -24,6 +24,14 @@ inspector = ["wry/devtools"]
 [lib]
 doctest = false
 
+[[test]]
+name = "windows_construction"
+harness = false
+test = false
+
+[target.'cfg(target_os = "windows")'.dev-dependencies]
+windows = { workspace = true, features = ["Win32_UI_WindowsAndMessaging"] }
+
 [dependencies]
 anyhow.workspace = true
 gpui-kit = { path = "../kit", version = "0.10.0", default-features = false }
