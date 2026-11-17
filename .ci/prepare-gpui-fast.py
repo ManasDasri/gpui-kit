@@ -20,8 +20,8 @@ with tarfile.open(fileobj=io.BytesIO(data), mode="r:gz") as archive:
     archive.extractall(directory, filter="data")
 source = directory / package
 subprocess.run(
-    ["git", "apply", "-p3", f"--directory={source.relative_to(root).as_posix()}",
-     ".ci/gpui-fast-app-borrow.patch"],
+    ["git", "apply", "-p3", f"--directory={source.relative_to(root).as_posix()}"],
+    input=(root / ".ci/gpui-fast-app-borrow.patch").read_bytes().replace(b"\r\n", b"\n"),
     cwd=root,
     check=True,
 )

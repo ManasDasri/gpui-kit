@@ -98,10 +98,10 @@ index 18f45e7..2e42242 100644
          let foreground_runnables = self.foreground_runnables.clone();
 diff --git a/crates/gpui/src/fast/app_borrow.rs b/crates/gpui/src/fast/app_borrow.rs
 new file mode 100644
-index 0000000..d7cb301
+index 0000000..f45c32b
 --- /dev/null
 +++ b/crates/gpui/src/fast/app_borrow.rs
-@@ -0,0 +1,116 @@
+@@ -0,0 +1,141 @@
 +//! Native Windows APIs can dispatch foreground task messages from a nested loop
 +//! while their caller still borrows App. Park those futures until the last app
 +//! borrow ends, rather than polling application code against an occupied AppCell.
@@ -196,11 +196,11 @@ index 0000000..d7cb301
 +    }
 +
 +    #[test]
-+    fn nested_app_borrows_park_and_wake_foreground_work_once() {
++    fn shared_app_borrows_park_and_wake_foreground_work_once() {
 +        let state = RefCell::new(0);
 +        // Field order matches AppRef and AppRefMut: release the RefCell first.
-+        let outer = (state.borrow_mut(), Guard::new());
-+        let inner = Guard::new();
++        let outer = (state.borrow(), Guard::new());
++        let inner = (state.borrow(), Guard::new());
 +        let counter = Arc::new(WakeCount(AtomicUsize::new(0)));
 +        let waker = Waker::from(counter.clone());
 +        let mut cx = Context::from_waker(&waker);
@@ -216,6 +216,31 @@ index 0000000..d7cb301
 +        assert_eq!(counter.0.load(Ordering::SeqCst), 1);
 +        assert_eq!(future.as_mut().poll(&mut cx), Poll::Ready(()));
 +        assert_eq!(*state.borrow(), 1);
++    }
++
++    #[test]
++    fn a_started_future_parks_again_during_a_mutable_app_borrow() {
++        let polls = RefCell::new(0);
++        let counter = Arc::new(WakeCount(AtomicUsize::new(0)));
++        let waker = Waker::from(counter.clone());
++        let mut cx = Context::from_waker(&waker);
++        let mut future = pin!(foreground(std::future::poll_fn(|_| {
++            let mut polls = polls.borrow_mut();
++            *polls += 1;
++            if *polls == 1 {
++                Poll::Pending
++            } else {
++                Poll::Ready(())
++            }
++        })));
++        assert!(future.as_mut().poll(&mut cx).is_pending());
++        let borrowed = (polls.borrow_mut(), Guard::new());
++        assert!(future.as_mut().poll(&mut cx).is_pending());
++        assert_eq!(*borrowed.0, 1);
++        drop(borrowed);
++        assert_eq!(counter.0.load(Ordering::SeqCst), 1);
++        assert_eq!(future.as_mut().poll(&mut cx), Poll::Ready(()));
++        assert_eq!(*polls.borrow(), 2);
 +    }
 +}
 diff --git a/crates/gpui/src/fast/mod.rs b/crates/gpui/src/fast/mod.rs
